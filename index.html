@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Archer Duel — 2 Player Archery PVP</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="game-wrap">
+    <h1 id="title">🏹 ARCHER DUEL</h1>
+
+    <div id="hud">
+      <div class="hud-panel" id="hud-p1">
+        <div class="hud-name p1-color">PLAYER 1</div>
+        <div class="health-bar-bg">
+          <div class="health-bar-fill p1-fill" id="hp1"></div>
+        </div>
+      </div>
+      <div class="hud-center">
+        <div id="round-label">ROUND 1</div>
+      </div>
+      <div class="hud-panel" id="hud-p2">
+        <div class="hud-name p2-color">PLAYER 2</div>
+        <div class="health-bar-bg">
+          <div class="health-bar-fill p2-fill" id="hp2"></div>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="game" width="960" height="520"></canvas>
+
+    <div id="controls">
+      <div class="ctrl-block p1-color">
+        <strong>Player 1</strong><br/>
+        W / S — Aim Up / Down<br/>
+        Hold A — Draw Bow &nbsp;|&nbsp; Release A — Shoot
+      </div>
+      <div class="ctrl-block p2-color">
+        <strong>Player 2</strong><br/>
+        ↑ / ↓ — Aim Up / Down<br/>
+        Hold → — Draw Bow &nbsp;|&nbsp; Release → — Shoot
+      </div>
+    </div>
+
+    <div id="overlay" class="hidden">
+      <div id="overlay-box">
+        <div id="overlay-title">ARCHER DUEL</div>
+        <div id="overlay-msg">First to reduce their rival to 0 HP wins!</div>
+        <div id="overlay-sub">Press <b>SPACE</b> to start</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
