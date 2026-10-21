@@ -1,0 +1,1336 @@
+<title>Wrecking Ball Blitz</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Barlow+Condensed:wght@500;600;700&display=swap">
+<style>
+/* Layout: one stage. A hazard-striped HUD strip sits over a 16:9 demolition site;
+   the menu and the job report / upgrade yard open as a full-screen overlay. */
+:root {
+  --bg: #15171c;
+  --panel: #1f232b;
+  --panel-2: #272c36;
+  --line: #3a404c;
+  --fg: #e6e0d2;
+  --muted: #9b978d;
+  --hazard: #f2b705;
+  --rust: #d4623b;
+  --good: #8bd17c;
+  --scrim: rgba(10, 11, 14, 0.84);
+  --display: 'Bungee', Impact, 'Arial Black', sans-serif;
+  --body: 'Barlow Condensed', 'Arial Narrow', 'Roboto Condensed', system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 17px;
+  line-height: 1.4;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px;
+  overflow-x: hidden;
+}
+#app { max-width: 1100px; margin: 0 auto; display: flex; flex-direction: column; gap: 10px; }
+
+/* ---- HUD ---- */
+#hud {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 12px 14px 8px;
+  overflow: hidden;
+}
+#hud::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: repeating-linear-gradient(-45deg, var(--hazard) 0 8px, var(--bg) 8px 16px);
+}
+.stat { display: flex; flex-direction: column; min-width: 0; }
+.stat .k { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-family: var(--display); font-size: 21px; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.stat .v.hazard { color: var(--hazard); }
+.stat .v.low { color: var(--rust); }
+.stat.grow { flex: 1 1 120px; }
+.meter { height: 10px; margin-top: 6px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; overflow: hidden; }
+.meter > i { display: block; height: 100%; width: 0%; background: linear-gradient(90deg, var(--hazard), var(--rust)); }
+#mute {
+  font: 600 14px var(--body);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+/* ---- Stage ---- */
+#stage {
+  position: relative;
+  width: min(100%, calc((100dvh - 150px) * 16 / 9));
+  min-width: min(100%, 320px);
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  margin: 0 auto;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+#game { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+#hint { text-align: center; color: var(--muted); font-size: 15px; }
+kbd {
+  font: 600 13px var(--body);
+  display: inline-block;
+  min-width: 22px;
+  padding: 1px 6px;
+  text-align: center;
+  color: var(--fg);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+}
+
+/* ---- Overlay ---- */
+#overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow-y: auto;
+  background: var(--scrim);
+  backdrop-filter: blur(3px);
+  padding: max(24px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+}
+#panel {
+  width: 100%;
+  max-width: 780px;
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 24px;
+}
+h1, h2, h3 { margin: 0; font-weight: 400; text-wrap: balance; }
+.logo { font-family: var(--display); font-size: clamp(38px, 8vw, 64px); line-height: 0.95; color: var(--hazard); }
+.logo span { color: var(--fg); }
+.eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); }
+.intro { display: flex; flex-direction: column; gap: 14px; }
+.intro p { margin: 0; max-width: 62ch; font-size: 19px; }
+.keys { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.keys li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.keys b { font-weight: 600; margin-left: 4px; }
+
+.report-head { display: flex; align-items: center; gap: 18px; }
+.grade {
+  flex: none;
+  width: 84px; height: 84px;
+  display: grid; place-items: center;
+  font-family: var(--display);
+  font-size: 46px;
+  color: var(--bg);
+  background: var(--hazard);
+  border-radius: 6px;
+  transform: rotate(-4deg);
+}
+.grade.g-S { background: var(--good); }
+.grade.g-D { background: var(--muted); }
+.report-head h1 { font-family: var(--display); font-size: clamp(24px, 5vw, 34px); line-height: 1.05; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 0; }
+.stats div { background: var(--panel-2); border-radius: 4px; padding: 10px 12px; min-width: 0; }
+.stats dt { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); }
+.stats dd { margin: 0; font-family: var(--display); font-size: 22px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stats dd small { font-family: var(--body); font-size: 15px; color: var(--muted); }
+
+.shop { display: flex; flex-direction: column; gap: 14px; }
+.shop-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px; border-top: 1px solid var(--line); padding-top: 18px; }
+.shop-head h2 { font-family: var(--display); font-size: 24px; }
+.bank { font-size: 18px; }
+.bank b { font-family: var(--display); font-weight: 400; color: var(--hazard); font-size: 22px; }
+.card { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 14px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card.luck { border-color: var(--hazard); }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.card h3 { font-family: var(--display); font-size: 20px; }
+.card p { margin: 2px 0 0; color: var(--muted); }
+.lvl { flex: none; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px; padding: 3px 8px; border-radius: 3px; background: var(--bg); }
+.card-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: auto; }
+.card-foot span { color: var(--muted); }
+.card-foot span b { color: var(--fg); font-weight: 600; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.oddsbar { display: flex; height: 16px; border-radius: 3px; overflow: hidden; background: var(--bg); }
+.oddsbar i { display: block; height: 100%; }
+.odds-wrap { overflow-x: auto; }
+.odds { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: 16px; }
+.odds th { text-align: left; font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); padding: 0 8px 4px 0; }
+.odds td { padding: 3px 8px 3px 0; white-space: nowrap; }
+.odds td.n, .odds th.n { text-align: right; }
+.odds .up { color: var(--good); }
+.sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+
+button.buy, button.go {
+  font: 400 16px var(--display);
+  cursor: pointer;
+  border-radius: 4px;
+  border: 2px solid var(--hazard);
+  padding: 8px 14px;
+  color: var(--bg);
+  background: var(--hazard);
+}
+button.buy:disabled { cursor: not-allowed; color: var(--muted); background: transparent; border-color: var(--line); }
+button.go { font-size: 22px; padding: 12px 26px; }
+button:focus-visible { outline: 3px solid var(--fg); outline-offset: 2px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; }
+.actions .note { color: var(--muted); }
+button.link { font: 600 15px var(--body); color: var(--muted); background: none; border: none; text-decoration: underline; cursor: pointer; padding: 4px 0; }
+button.link.armed { color: var(--rust); }
+
+@media (max-width: 520px) {
+  #panel { padding: 18px; }
+  .stat .v { font-size: 18px; }
+  #hint { font-size: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .grade { transform: none; }
+}
+</style>
+
+<div id="app">
+  <div id="hud">
+    <div class="stat"><span class="k">Bank</span><span class="v hazard" id="h-bank">0</span></div>
+    <div class="stat"><span class="k">This job</span><span class="v" id="h-earned">0</span></div>
+    <div class="stat"><span class="k">Time</span><span class="v" id="h-time">0:45</span></div>
+    <div class="stat"><span class="k">Combo</span><span class="v" id="h-combo">×1</span></div>
+    <div class="stat"><span class="k">Luck</span><span class="v" id="h-luck">0</span></div>
+    <div class="stat grow"><span class="k">Swing speed</span><div class="meter"><i id="h-speed"></i></div></div>
+    <button id="mute" type="button" aria-pressed="false">Sound on</button>
+  </div>
+  <div id="stage"><canvas id="game" aria-label="Demolition site with a crane and wrecking ball"></canvas></div>
+  <div id="hint"><kbd>←</kbd> <kbd>→</kbd> move crane · <kbd>↑</kbd> <kbd>↓</kbd> chain length · or steer with your mouse or finger</div>
+</div>
+<div id="overlay"><div id="panel"></div></div>
+
+<script>
+(() => {
+'use strict';
+
+// ============================================================================
+// WRECKING BALL BLITZ
+// Swing a wrecking ball from a crane, smash buildings for points, and spend
+// points on Luck so bigger (and more valuable) buildings appear.
+// ============================================================================
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// The world is simulated at a fixed 960x540 resolution and scaled to fit.
+const W = 960;
+const H = 540;
+const GROUND = 492;
+const PIVOT_Y = 46;            // where the chain hangs from the trolley
+const B = 18;                  // building block size, px
+const LOTS = [140, 373, 606, 840];
+const GRAVITY = 1500;
+const ROPE_MIN = 70;
+const TROLLEY_MIN = 30;
+const TROLLEY_MAX = W - 30;
+const TROLLEY_VMAX = 560;
+const TROLLEY_ACC = 2600;
+const DEMOLISH_AT = 0.15;      // building is demolished when <= 15% of blocks remain
+
+// strength = minimum ball speed (px/s) needed to break a block
+const TIERS = [
+  { name: 'Shack',        cols: 3, rows: 3,  pts: 5,   weight: 40,   strength: 120, wall: ['#8b6b4e', '#7d5f45'], lit: '#ffd36b', dark: '#3b2c20', swatch: '#8b6b4e' },
+  { name: 'House',        cols: 4, rows: 5,  pts: 8,   weight: 30,   strength: 150, wall: ['#c46a4b', '#b05c40'], lit: '#ffd36b', dark: '#3a2522', swatch: '#c46a4b' },
+  { name: 'Apartments',   cols: 5, rows: 8,  pts: 12,  weight: 18,   strength: 180, wall: ['#a39a8e', '#918879'], lit: '#ffe08a', dark: '#2e3340', swatch: '#a39a8e' },
+  { name: 'Office',       cols: 5, rows: 12, pts: 20,  weight: 9,    strength: 210, wall: ['#5f7d90', '#557183'], lit: '#cfeaff', dark: '#22303f', swatch: '#5f7d90' },
+  { name: 'Skyscraper',   cols: 6, rows: 16, pts: 35,  weight: 3,    strength: 240, wall: ['#3f5f7a', '#38556e'], lit: '#9fe3ff', dark: '#18222f', swatch: '#4f86b0' },
+  { name: 'Mega Tower',   cols: 7, rows: 21, pts: 60,  weight: 0.8,  strength: 270, wall: ['#57487e', '#4c3f70'], lit: '#e3b8ff', dark: '#1f1830', swatch: '#8a6fd1' },
+  { name: 'Golden Tower', cols: 7, rows: 23, pts: 150, weight: 0.15, strength: 300, wall: ['#e2b23b', '#cf9f2c'], lit: '#fff6c9', dark: '#8a5a10', swatch: '#f5cc4a' },
+];
+
+const UPGRADES = {
+  luck: { max: 10, cost: (l) => Math.round(300 * Math.pow(1.75, l)) },
+  ball: { max: 4,  cost: (l) => Math.round(600 * Math.pow(2.3, l)) },
+  time: { max: 5,  cost: (l) => Math.round(500 * Math.pow(2, l)) },
+};
+
+const GRADES = [
+  { min: 420, letter: 'S', bonus: 0.5,  title: 'Total devastation' },
+  { min: 260, letter: 'A', bonus: 0.25, title: 'Wrecking pro' },
+  { min: 150, letter: 'B', bonus: 0.1,  title: 'Solid demolition' },
+  { min: 70,  letter: 'C', bonus: 0.05, title: 'Getting warmed up' },
+  { min: 0,   letter: 'D', bonus: 0,    title: 'Barely a scratch' },
+];
+
+// ---- Save data (per browser) -----------------------------------------------
+const SAVE_KEY = 'wrecking-ball-blitz.v1';
+const defaultSave = () => ({ bank: 0, luck: 0, ball: 0, time: 0, best: 0, jobs: 0, career: 0 });
+function loadSave() {
+  try {
+    const s = JSON.parse(localStorage.getItem(SAVE_KEY));
+    if (s && typeof s.bank === 'number') return Object.assign(defaultSave(), s);
+  } catch (e) { /* storage unavailable */ }
+  return defaultSave();
+}
+function persist() {
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(save)); } catch (e) { /* storage unavailable */ }
+}
+let save = loadSave();
+
+const ballRadius = () => 20 + save.ball * 5;
+const jobTime = () => 45 + save.time * 10;
+const ropeMax = () => GROUND - PIVOT_Y - ballRadius() - 2;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+const approach = (v, target, step) => (v < target ? Math.min(target, v + step) : Math.max(target, v - step));
+const fmt = (n) => Math.round(n).toLocaleString('en-US');
+
+// Luck multiplies the weight of each tier by (1 + 0.45 * luck) ^ tierIndex,
+// so every level shifts the odds toward the bigger buildings.
+function tierOdds(luck) {
+  const w = TIERS.map((t, i) => t.weight * Math.pow(1 + 0.45 * luck, i));
+  const sum = w.reduce((a, b) => a + b, 0);
+  return w.map((x) => x / sum);
+}
+function avgBuildingValue(luck) {
+  const odds = tierOdds(luck);
+  return TIERS.reduce((sum, t, i) => sum + odds[i] * t.cols * t.rows * t.pts * 1.5, 0);
+}
+function pickTier() {
+  const odds = tierOdds(save.luck);
+  let r = Math.random();
+  for (let i = 0; i < odds.length; i++) {
+    r -= odds[i];
+    if (r <= 0) return i;
+  }
+  return odds.length - 1;
+}
+
+// ---- Audio (synthesized, no assets) ----------------------------------------
+const sfx = (() => {
+  let ac = null;
+  let noiseBuf = null;
+  let muted = false;
+  let lastCrunch = 0;
+  let lastClink = 0;
+  function unlock() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ac = new AC();
+      noiseBuf = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.8), ac.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2);
+    }
+    if (ac.state === 'suspended') ac.resume();
+    return ac;
+  }
+  function noise(dur, freq, gain) {
+    if (muted || !ac) return;
+    const t = ac.currentTime;
+    const src = ac.createBufferSource();
+    src.buffer = noiseBuf;
+    const f = ac.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = freq;
+    const g = ac.createGain();
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(f).connect(g).connect(ac.destination);
+    src.start(t);
+    src.stop(t + dur);
+  }
+  function tone(freq, dur, gain, type, slideTo) {
+    if (muted || !ac) return;
+    const t = ac.currentTime;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = type || 'sine';
+    osc.frequency.setValueAtTime(freq, t);
+    if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t + dur);
+    g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(g).connect(ac.destination);
+    osc.start(t);
+    osc.stop(t + dur + 0.02);
+  }
+  return {
+    unlock,
+    crunch(n, tier) {
+      const now = performance.now();
+      if (now - lastCrunch < 55) return;
+      lastCrunch = now;
+      noise(0.16 + 0.04 * Math.min(n, 6), 700 + Math.random() * 500 - tier * 40, Math.min(0.55, 0.14 + n * 0.06));
+    },
+    clink() {
+      const now = performance.now();
+      if (now - lastClink < 140) return;
+      lastClink = now;
+      tone(480, 0.14, 0.1, 'triangle', 320);
+    },
+    rumble() { noise(0.75, 260, 0.7); tone(80, 0.7, 0.35, 'sine', 40); },
+    spawn(tier) { tone(220 + tier * 70, 0.25, 0.08, 'square', 440 + tier * 120); },
+    buy() { tone(880, 0.08, 0.1, 'square'); setTimeout(() => tone(1320, 0.14, 0.1, 'square'), 70); },
+    whistle() { tone(1400, 0.5, 0.12, 'square', 900); },
+    toggle() { muted = !muted; return muted; },
+  };
+})();
+
+// ---- World state ------------------------------------------------------------
+const state = {
+  mode: 'menu',          // 'menu' | 'playing' | 'report'
+  time: 0,
+  earned: 0,
+  blocks: 0,
+  demolished: 0,
+  combo: 0,
+  comboTimer: 0,
+  bestCombo: 0,
+  biggest: -1,
+  lots: LOTS.map((x, i) => ({ building: null, timer: 0.2 + i * 0.25 })),
+  debris: [],
+  dust: [],
+  floaters: [],
+  shake: 0,
+  hintCooldown: 0,
+};
+const trolley = { x: W / 2, vx: 0 };
+const ball = { x: W / 2, y: PIVOT_Y + 230, px: W / 2, py: PIVOT_Y + 230, L: 230, speed: 0, trail: [] };
+const keys = { left: false, right: false, up: false, down: false };
+const pointer = { x: W / 2, y: 300, active: false, down: false };
+let lastReport = null;
+
+function makeBuilding(lotIndex, tier) {
+  const t = TIERS[tier];
+  const cells = [];
+  for (let r = 0; r < t.rows; r++) {
+    const row = [];
+    for (let c = 0; c < t.cols; c++) row.push({ alive: true, shade: Math.random() < 0.5 ? 0 : 1, lit: Math.random() < 0.45 });
+    cells.push(row);
+  }
+  return {
+    tier, t, cells,
+    x: LOTS[lotIndex] - (t.cols * B) / 2,
+    cols: t.cols, rows: t.rows,
+    total: t.cols * t.rows,
+    alive: t.cols * t.rows,
+    rise: 0,
+    dirty: false,
+    acc: { pts: 0, x: 0, y: 0, n: 0 },
+  };
+}
+
+function updateLots(dt) {
+  state.lots.forEach((lot, i) => {
+    const b = lot.building;
+    if (!b) {
+      if (state.mode === 'report') return;
+      lot.timer -= dt;
+      if (lot.timer <= 0) {
+        const tier = pickTier();
+        lot.building = makeBuilding(i, tier);
+        if (state.mode === 'playing') {
+          state.biggest = Math.max(state.biggest, tier);
+          if (tier >= 3) {
+            addFloater(LOTS[i], GROUND - TIERS[tier].rows * B - 26, TIERS[tier].name.toUpperCase() + '!', tier === 6 ? '#ffd75e' : '#ffffff', 22, 1.8);
+            sfx.spawn(tier);
+          }
+        }
+      }
+    } else if (b.rise < 1) {
+      b.rise = Math.min(1, b.rise + dt / 0.9);
+    }
+  });
+}
+
+// ---- Scoring ----------------------------------------------------------------
+const comboMult = () => 1 + Math.min(6, Math.floor(state.combo / 10)) * 0.5;
+
+function scoreBlock(b, x, y) {
+  state.combo++;
+  state.comboTimer = 1.6;
+  state.bestCombo = Math.max(state.bestCombo, state.combo);
+  const pts = Math.round(b.t.pts * comboMult());
+  state.earned += pts;
+  save.bank += pts;
+  state.blocks++;
+  b.acc.pts += pts;
+  b.acc.x += x;
+  b.acc.y = b.acc.n === 0 ? y : Math.min(b.acc.y, y);
+  b.acc.n++;
+}
+
+function smash(b, r, c, vx, vy, collapse) {
+  const cell = b.cells[r][c];
+  if (!cell.alive) return;
+  cell.alive = false;
+  b.alive--;
+  const x = b.x + c * B;
+  const y = GROUND - (r + 1) * B;
+  const color = b.t.wall[cell.shade];
+  const pieces = collapse ? 1 : 2;
+  for (let k = 0; k < pieces; k++) {
+    const s = B * (0.4 + Math.random() * 0.35);
+    state.debris.push({
+      x: x + Math.random() * (B - s) + s / 2,
+      y: y + Math.random() * (B - s) + s / 2,
+      vx: collapse ? (Math.random() - 0.5) * 60 : vx * 0.55 + (Math.random() - 0.5) * 240,
+      vy: collapse ? Math.random() * 40 : vy * 0.55 + (Math.random() - 0.5) * 240 - 120,
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * (collapse ? 4 : 14),
+      s, color,
+      win: k === 0 && cell.lit ? b.t.lit : null,
+      life: 2.4 + Math.random() * 0.8,
+    });
+  }
+  if (!collapse || Math.random() < 0.35) {
+    state.dust.push({ x: x + B / 2, y: y + B / 2, r: 6 + Math.random() * 6, vr: 30 + Math.random() * 30, life: 0.8, max: 0.8 });
+  }
+  if (state.debris.length > 900) state.debris.splice(0, state.debris.length - 900);
+  scoreBlock(b, x + B / 2, y);
+}
+
+// Anything not connected to the ground through neighbouring blocks falls.
+function checkSupport(b) {
+  const seen = b.cells.map((row) => row.map(() => false));
+  const stack = [];
+  for (let c = 0; c < b.cols; c++) if (b.cells[0][c].alive) { seen[0][c] = true; stack.push([0, c]); }
+  while (stack.length) {
+    const [r, c] = stack.pop();
+    for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nr = r + dr, nc = c + dc;
+      if (nr < 0 || nc < 0 || nr >= b.rows || nc >= b.cols) continue;
+      if (seen[nr][nc] || !b.cells[nr][nc].alive) continue;
+      seen[nr][nc] = true;
+      stack.push([nr, nc]);
+    }
+  }
+  for (let r = 0; r < b.rows; r++)
+    for (let c = 0; c < b.cols; c++)
+      if (b.cells[r][c].alive && !seen[r][c]) smash(b, r, c, 0, 0, true);
+}
+
+function demolish(lot, i) {
+  const b = lot.building;
+  for (let r = 0; r < b.rows; r++)
+    for (let c = 0; c < b.cols; c++)
+      if (b.cells[r][c].alive) smash(b, r, c, 0, 0, true);
+  const bonus = Math.round(b.total * b.t.pts * 0.5);
+  state.earned += bonus;
+  save.bank += bonus;
+  state.demolished++;
+  flushAcc(b);
+  addFloater(LOTS[i], GROUND - 120, 'DEMOLISHED +' + fmt(bonus), '#f2b705', 24, 1.8);
+  for (let k = 0; k < 14; k++) {
+    state.dust.push({ x: b.x + Math.random() * b.cols * B, y: GROUND - Math.random() * 30, r: 10 + Math.random() * 14, vr: 40 + Math.random() * 40, life: 1.4, max: 1.4 });
+  }
+  state.shake = Math.max(state.shake, 12);
+  sfx.rumble();
+  lot.building = null;
+  lot.timer = 1.3;
+}
+
+function flushAcc(b) {
+  if (b.acc.n === 0) return;
+  addFloater(b.acc.x / b.acc.n, b.acc.y - 10, '+' + fmt(b.acc.pts), '#ffffff', b.acc.pts >= 500 ? 26 : b.acc.pts >= 100 ? 21 : 17, 1.0);
+  b.acc = { pts: 0, x: 0, y: 0, n: 0 };
+}
+
+function addFloater(x, y, text, color, size, life) {
+  state.floaters.push({ x: clamp(x, 60, W - 60), y: Math.max(y, 70), text, color, size, life, max: life });
+}
+
+// ---- Physics ----------------------------------------------------------------
+function step(h) {
+  const playing = state.mode === 'playing';
+
+  // Trolley: steered by keys or by the pointer.
+  const kx = playing ? (keys.right ? 1 : 0) - (keys.left ? 1 : 0) : 0;
+  if (playing && pointer.active) {
+    const desired = clamp((pointer.x - trolley.x) * 6, -TROLLEY_VMAX, TROLLEY_VMAX);
+    trolley.vx = approach(trolley.vx, desired, TROLLEY_ACC * h);
+  } else if (kx) {
+    trolley.vx = clamp(trolley.vx + kx * TROLLEY_ACC * h, -TROLLEY_VMAX, TROLLEY_VMAX);
+  } else {
+    trolley.vx *= Math.exp(-6 * h);
+  }
+  trolley.x += trolley.vx * h;
+  if (trolley.x < TROLLEY_MIN) { trolley.x = TROLLEY_MIN; trolley.vx = 0; }
+  if (trolley.x > TROLLEY_MAX) { trolley.x = TROLLEY_MAX; trolley.vx = 0; }
+
+  // Chain length.
+  const ky = playing ? (keys.down ? 1 : 0) - (keys.up ? 1 : 0) : 0;
+  if (playing && pointer.active) ball.L = approach(ball.L, pointer.y - PIVOT_Y, 320 * h);
+  else if (ky) ball.L += ky * 260 * h;
+  ball.L = clamp(ball.L, ROPE_MIN, ropeMax());
+
+  // Verlet integration.
+  const vx = (ball.x - ball.px) * 0.9996;
+  const vy = (ball.y - ball.py) * 0.9996;
+  ball.px = ball.x;
+  ball.py = ball.y;
+  ball.x += vx;
+  ball.y += vy + GRAVITY * h * h;
+
+  if (playing) collideBuildings(h);
+
+  const r = ballRadius();
+  if (ball.y > GROUND - r) {
+    let gvx = ball.x - ball.px, gvy = ball.y - ball.py;
+    ball.y = GROUND - r;
+    if (gvy > 0) gvy *= -0.2;
+    gvx *= 0.97;
+    ball.px = ball.x - gvx;
+    ball.py = ball.y - gvy;
+  }
+
+  // The chain is rigid: keep the ball exactly L from the pivot.
+  const dx = ball.x - trolley.x;
+  const dy = ball.y - PIVOT_Y;
+  const d = Math.hypot(dx, dy) || 1;
+  ball.x = trolley.x + (dx / d) * ball.L;
+  ball.y = PIVOT_Y + (dy / d) * ball.L;
+
+  ball.speed = Math.hypot(ball.x - ball.px, ball.y - ball.py) / h;
+}
+
+function collideBuildings(h) {
+  const r = ballRadius();
+  for (const lot of state.lots) {
+    const b = lot.building;
+    if (!b || b.rise < 1) continue;
+    const top = GROUND - b.rows * B;
+    if (ball.x + r < b.x || ball.x - r > b.x + b.cols * B || ball.y + r < top) continue;
+
+    let vx = ball.x - ball.px;
+    let vy = ball.y - ball.py;
+    const speed = Math.hypot(vx, vy) / h;
+    const strong = speed >= b.t.strength;
+    // A faster hit shatters blocks a little beyond the ball's surface.
+    const reach = strong ? r + Math.min(14, (speed - b.t.strength) / 35) : r;
+    const c0 = Math.max(0, Math.floor((ball.x - reach - b.x) / B));
+    const c1 = Math.min(b.cols - 1, Math.floor((ball.x + reach - b.x) / B));
+    const r0 = Math.max(0, Math.floor((GROUND - (ball.y + reach)) / B));
+    const r1 = Math.min(b.rows - 1, Math.floor((GROUND - (ball.y - reach)) / B));
+
+    let touching = false;
+    const hits = [];
+    for (let rr = r0; rr <= r1; rr++) {
+      for (let cc = c0; cc <= c1; cc++) {
+        if (!b.cells[rr][cc].alive) continue;
+        const x0 = b.x + cc * B;
+        const y0 = GROUND - (rr + 1) * B;
+        const qx = clamp(ball.x, x0, x0 + B);
+        const qy = clamp(ball.y, y0, y0 + B);
+        const dist = Math.hypot(ball.x - qx, ball.y - qy);
+        if (dist < r) touching = true;
+        if (dist < reach) hits.push([rr, cc, qx, qy, dist]);
+      }
+    }
+    if (!touching) continue;
+
+    if (strong) {
+      const loss = Math.max(0.015, 0.05 + b.tier * 0.01 - save.ball * 0.008);
+      for (const [rr, cc] of hits) {
+        smash(b, rr, cc, vx / h, vy / h, false);
+        vx *= 1 - loss;
+        vy *= 1 - loss;
+      }
+      ball.px = ball.x - vx;
+      ball.py = ball.y - vy;
+      b.dirty = true;
+      state.shake = Math.min(10, state.shake + hits.length * 0.6);
+      sfx.crunch(hits.length, b.tier);
+    } else {
+      // Too slow to break anything: bounce off the wall.
+      for (const [, , qx, qy, dist] of hits) {
+        let nx = ball.x - qx, ny = ball.y - qy;
+        let len = dist;
+        if (len < 1e-6) { nx = 0; ny = -1; len = 1; }
+        nx /= len; ny /= len;
+        const pen = r - len;
+        if (pen <= 0) continue;
+        ball.x += nx * pen;
+        ball.y += ny * pen;
+        const vn = vx * nx + vy * ny;
+        if (vn < 0) { vx -= 1.35 * vn * nx; vy -= 1.35 * vn * ny; }
+      }
+      ball.px = ball.x - vx;
+      ball.py = ball.y - vy;
+      if (speed > 70) {
+        sfx.clink();
+        if (state.hintCooldown <= 0) {
+          addFloater(ball.x, ball.y - r - 16, 'Swing harder!', '#d4623b', 16, 0.9);
+          state.hintCooldown = 1.6;
+        }
+      }
+    }
+  }
+}
+
+function afterPhysics() {
+  state.lots.forEach((lot, i) => {
+    const b = lot.building;
+    if (!b || !b.dirty) return;
+    b.dirty = false;
+    checkSupport(b);
+    if (b.alive <= b.total * DEMOLISH_AT) demolish(lot, i);
+    else flushAcc(b);
+  });
+}
+
+function updateParticles(dt) {
+  for (const p of state.debris) {
+    p.vy += GRAVITY * dt;
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.rot += p.vr * dt;
+    if (p.y > GROUND - p.s / 2) {
+      p.y = GROUND - p.s / 2;
+      p.vy *= -0.28;
+      p.vx *= 0.72;
+      p.vr *= 0.6;
+    }
+    p.life -= dt;
+  }
+  state.debris = state.debris.filter((p) => p.life > 0 && p.x > -40 && p.x < W + 40);
+  for (const d of state.dust) { d.r += d.vr * dt; d.y -= 12 * dt; d.life -= dt; }
+  state.dust = state.dust.filter((d) => d.life > 0);
+  for (const f of state.floaters) { f.y -= 38 * dt; f.life -= dt; }
+  state.floaters = state.floaters.filter((f) => f.life > 0);
+}
+
+// ---- Job flow -----------------------------------------------------------------
+function startJob() {
+  sfx.unlock();
+  Object.assign(state, {
+    mode: 'playing', time: jobTime(), earned: 0, blocks: 0, demolished: 0,
+    combo: 0, comboTimer: 0, bestCombo: 0, biggest: -1, debris: [], dust: [], floaters: [], hintCooldown: 0,
+  });
+  state.lots = LOTS.map((x, i) => ({ building: null, timer: 0.15 + i * 0.2 }));
+  trolley.x = W / 2;
+  trolley.vx = 0;
+  ball.L = 340;
+  ball.x = ball.px = W / 2;
+  ball.y = ball.py = PIVOT_Y + ball.L;
+  ball.trail = [];
+  pointer.active = false;
+  hideOverlay();
+  canvas.focus({ preventScroll: true });
+}
+
+function endJob() {
+  state.mode = 'report';
+  state.combo = 0;
+  sfx.whistle();
+  const grade = GRADES.find((g) => state.blocks >= g.min);
+  const bonus = Math.round(state.earned * grade.bonus);
+  save.bank += bonus;
+  save.jobs++;
+  save.career += state.earned + bonus;
+  save.best = Math.max(save.best, state.earned + bonus);
+  persist();
+  lastReport = {
+    job: save.jobs, grade, bonus, earned: state.earned, blocks: state.blocks,
+    demolished: state.demolished, bestCombo: state.bestCombo, biggest: state.biggest,
+  };
+  setTimeout(() => showOverlay('report'), 900);
+}
+
+// ---- Overlay: menu, job report and upgrade yard ------------------------------
+const overlay = document.getElementById('overlay');
+const panel = document.getElementById('panel');
+let overlayKind = 'menu';
+
+function hideOverlay() { overlay.hidden = true; }
+function showOverlay(kind) {
+  overlayKind = kind;
+  renderOverlay();
+  overlay.hidden = false;
+  const go = document.getElementById('go');
+  if (go) go.focus({ preventScroll: true });
+}
+
+function introHTML() {
+  return `
+  <div class="intro">
+    <div class="eyebrow">Crane operator wanted</div>
+    <h1 class="logo">Wrecking<br><span>Ball Blitz</span></h1>
+    <p>Swing the wrecking ball into buildings to smash them. Every block you knock out earns points, quick chains of hits build a combo multiplier, and knocking a whole building down pays a bonus. Spend your points on <b>Luck</b> so bigger buildings show up. Bigger buildings are worth far more, but you need to hit them harder.</p>
+    <ul class="keys">
+      <li><kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd><b>Move the crane</b></li>
+      <li><kbd>↑</kbd><kbd>↓</kbd> or <kbd>W</kbd><kbd>S</kbd><b>Shorten or lengthen the chain</b></li>
+      <li><kbd>Mouse</kbd> or <kbd>Touch</kbd><b>The crane follows your pointer. Higher or lower sets the chain length.</b></li>
+    </ul>
+  </div>`;
+}
+
+function reportHTML(r) {
+  const biggest = r.biggest >= 0 ? TIERS[r.biggest].name : 'None';
+  return `
+  <div class="report-head">
+    <div class="grade g-${r.grade.letter}" aria-label="Grade ${r.grade.letter}">${r.grade.letter}</div>
+    <div>
+      <div class="eyebrow">Job ${r.job} complete</div>
+      <h1>${r.grade.title}</h1>
+    </div>
+  </div>
+  <dl class="stats">
+    <div><dt>Points earned</dt><dd>${fmt(r.earned)}</dd></div>
+    <div><dt>Grade bonus</dt><dd>+${fmt(r.bonus)} <small>(${Math.round(r.grade.bonus * 100)}%)</small></dd></div>
+    <div><dt>Blocks smashed</dt><dd>${fmt(r.blocks)}</dd></div>
+    <div><dt>Demolished</dt><dd>${r.demolished} <small>building${r.demolished === 1 ? '' : 's'}</small></dd></div>
+    <div><dt>Best combo</dt><dd>${r.bestCombo} <small>hits</small></dd></div>
+    <div><dt>Biggest target</dt><dd style="font-size:18px">${biggest}</dd></div>
+  </dl>`;
+}
+
+function buyButton(key) {
+  const lvl = save[key];
+  const up = UPGRADES[key];
+  if (lvl >= up.max) return `<button class="buy" type="button" disabled>Maxed out</button>`;
+  const cost = up.cost(lvl);
+  return `<button class="buy" type="button" data-buy="${key}" ${save.bank < cost ? 'disabled' : ''}>Buy · ${fmt(cost)} pts</button>`;
+}
+
+function shopHTML() {
+  const now = tierOdds(save.luck);
+  const maxed = save.luck >= UPGRADES.luck.max;
+  const next = tierOdds(Math.min(UPGRADES.luck.max, save.luck + 1));
+  const pct = (p) => (p >= 0.1 ? Math.round(p * 100) : p >= 0.001 ? (p * 100).toFixed(1) : '<0.1') + '%';
+  const bar = TIERS.map((t, i) => `<i style="width:${(now[i] * 100).toFixed(2)}%;background:${t.swatch}" title="${t.name} ${pct(now[i])}"></i>`).join('');
+  const rows = TIERS.map((t, i) => `
+    <tr>
+      <td><span class="sw" style="background:${t.swatch}"></span>${t.name}</td>
+      <td class="n">${t.cols * t.rows}</td>
+      <td class="n">${t.pts}</td>
+      <td class="n">${pct(now[i])}</td>
+      ${maxed ? '' : `<td class="n ${next[i] > now[i] ? 'up' : ''}">${pct(next[i])}</td>`}
+    </tr>`).join('');
+  const avgNow = avgBuildingValue(save.luck);
+  const avgNext = avgBuildingValue(Math.min(UPGRADES.luck.max, save.luck + 1));
+  return `
+  <section class="shop">
+    <div class="shop-head">
+      <h2>Upgrade yard</h2>
+      <div class="bank">Bank <b>${fmt(save.bank)}</b> pts</div>
+    </div>
+    <div class="card luck">
+      <div class="card-top">
+        <div><h3>Luck</h3><p>Makes bigger, richer buildings appear more often.</p></div>
+        <div class="lvl">Lv ${save.luck}/${UPGRADES.luck.max}</div>
+      </div>
+      <div class="oddsbar" aria-hidden="true">${bar}</div>
+      <div class="odds-wrap">
+        <table class="odds">
+          <thead><tr><th>Building</th><th class="n">Blocks</th><th class="n">Pts/block</th><th class="n">Chance now</th>${maxed ? '' : '<th class="n">Next level</th>'}</tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <div class="card-foot">
+        <span>Average building worth <b>${fmt(avgNow)}</b>${maxed ? '' : ` → <b>${fmt(avgNext)}</b>`} pts</span>
+        ${buyButton('luck')}
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <div class="card-top">
+          <div><h3>Heavy ball</h3><p>A bigger ball smashes more per hit and slows down less.</p></div>
+          <div class="lvl">Lv ${save.ball}/${UPGRADES.ball.max}</div>
+        </div>
+        <div class="card-foot"><span>Size <b>${ballRadius() * 2}px</b></span>${buyButton('ball')}</div>
+      </div>
+      <div class="card">
+        <div class="card-top">
+          <div><h3>Overtime</h3><p>Adds 10 seconds to every job.</p></div>
+          <div class="lvl">Lv ${save.time}/${UPGRADES.time.max}</div>
+        </div>
+        <div class="card-foot"><span>Job length <b>${jobTime()}s</b></span>${buyButton('time')}</div>
+      </div>
+    </div>
+  </section>`;
+}
+
+let resetArmed = false;
+function renderOverlay() {
+  const returning = save.jobs > 0;
+  let html = overlayKind === 'report' && lastReport ? reportHTML(lastReport) : introHTML();
+  if (overlayKind === 'report' || returning) html += shopHTML();
+  html += `
+  <div class="actions">
+    <button class="go" id="go" type="button">${returning ? 'Start next job' : 'Start demolition'}</button>
+    ${overlayKind === 'menu' && returning
+      ? `<button class="link ${resetArmed ? 'armed' : ''}" id="reset" type="button">${resetArmed ? 'Click again to erase all progress' : 'Reset progress'}</button>`
+      : `<span class="note">Press <kbd>Space</kbd> to start</span>`}
+  </div>`;
+  panel.innerHTML = html;
+}
+
+panel.addEventListener('click', (e) => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  if (btn.id === 'go') { startJob(); return; }
+  if (btn.id === 'reset') {
+    if (resetArmed) {
+      save = defaultSave();
+      persist();
+      resetArmed = false;
+    } else {
+      resetArmed = true;
+    }
+    renderOverlay();
+    const again = document.getElementById('reset');
+    if (again) again.focus({ preventScroll: true });
+    return;
+  }
+  const key = btn.dataset.buy;
+  if (key) {
+    const up = UPGRADES[key];
+    const cost = up.cost(save[key]);
+    if (save[key] < up.max && save.bank >= cost) {
+      sfx.unlock();
+      save.bank -= cost;
+      save[key]++;
+      persist();
+      sfx.buy();
+      renderOverlay();
+      const same = panel.querySelector(`[data-buy="${key}"]`);
+      (same && !same.disabled ? same : document.getElementById('go')).focus({ preventScroll: true });
+    }
+  }
+});
+
+// ---- Input --------------------------------------------------------------------
+const KEYMAP = { arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right', arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down' };
+window.addEventListener('keydown', (e) => {
+  const k = e.key.toLowerCase();
+  if (!overlay.hidden) {
+    if ((k === ' ' || k === 'enter') && e.target === document.body) { e.preventDefault(); startJob(); }
+    return;
+  }
+  if (k === 'm') { toggleMute(); return; }
+  const dir = KEYMAP[k];
+  if (dir) {
+    e.preventDefault();
+    keys[dir] = true;
+    pointer.active = false;
+  }
+});
+window.addEventListener('keyup', (e) => {
+  const dir = KEYMAP[e.key.toLowerCase()];
+  if (dir) keys[dir] = false;
+});
+window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
+
+function setPointer(e) {
+  const rect = canvas.getBoundingClientRect();
+  pointer.x = ((e.clientX - rect.left) / rect.width) * W;
+  pointer.y = ((e.clientY - rect.top) / rect.height) * H;
+}
+canvas.addEventListener('pointerdown', (e) => {
+  sfx.unlock();
+  setPointer(e);
+  pointer.down = true;
+  pointer.active = true;
+  if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse' || pointer.down) {
+    setPointer(e);
+    pointer.active = true;
+  }
+});
+const pointerEnd = (e) => {
+  pointer.down = false;
+  if (e.pointerType !== 'mouse') pointer.active = false;
+};
+canvas.addEventListener('pointerup', pointerEnd);
+canvas.addEventListener('pointercancel', pointerEnd);
+canvas.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse' && !pointer.down) pointer.active = false; });
+canvas.tabIndex = 0;
+
+const muteBtn = document.getElementById('mute');
+function toggleMute() {
+  sfx.unlock();
+  const muted = sfx.toggle();
+  muteBtn.textContent = muted ? 'Sound off' : 'Sound on';
+  muteBtn.setAttribute('aria-pressed', String(muted));
+}
+muteBtn.addEventListener('click', toggleMute);
+
+// ---- Rendering ----------------------------------------------------------------
+let bg = null;
+let pixelScale = 1;
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width) return;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  pixelScale = (rect.width / W) * dpr;
+  canvas.width = Math.round(W * pixelScale);
+  canvas.height = Math.round(H * pixelScale);
+  bg = null;
+}
+new ResizeObserver(resize).observe(canvas);
+
+function seeded(seed) {
+  return () => {
+    seed |= 0; seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function buildBackground() {
+  const c = document.createElement('canvas');
+  c.width = canvas.width;
+  c.height = canvas.height;
+  const g = c.getContext('2d');
+  g.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
+  const sky = g.createLinearGradient(0, 0, 0, GROUND);
+  sky.addColorStop(0, '#1e2540');
+  sky.addColorStop(0.55, '#6b4560');
+  sky.addColorStop(1, '#ee9459');
+  g.fillStyle = sky;
+  g.fillRect(-20, -20, W + 40, GROUND + 20);
+  const sun = g.createRadialGradient(720, GROUND - 70, 10, 720, GROUND - 70, 140);
+  sun.addColorStop(0, 'rgba(255,214,140,0.95)');
+  sun.addColorStop(0.35, 'rgba(255,190,120,0.45)');
+  sun.addColorStop(1, 'rgba(255,170,110,0)');
+  g.fillStyle = sun;
+  g.fillRect(560, GROUND - 230, 320, 230);
+  const rnd = seeded(7);
+  for (const [color, minH, maxH, winAlpha] of [['#4a3a5c', 60, 210, 0], ['#2c2740', 30, 130, 0.5]]) {
+    let x = -20;
+    while (x < W + 20) {
+      const w = 26 + rnd() * 50;
+      const h = minH + rnd() * (maxH - minH);
+      g.fillStyle = color;
+      g.fillRect(x, GROUND - h, w, h);
+      if (winAlpha) {
+        g.fillStyle = `rgba(255,205,120,${winAlpha})`;
+        for (let wy = GROUND - h + 8; wy < GROUND - 8; wy += 12)
+          for (let wx = x + 5; wx < x + w - 6; wx += 9)
+            if (rnd() < 0.18) g.fillRect(wx, wy, 3, 4);
+      }
+      x += w + rnd() * 10;
+    }
+  }
+  g.fillStyle = '#3a322c';
+  g.fillRect(-20, GROUND, W + 40, H - GROUND + 20);
+  g.fillStyle = '#4a4038';
+  g.fillRect(-20, GROUND, W + 40, 6);
+  g.fillStyle = 'rgba(0,0,0,0.18)';
+  for (let x = 0; x < W; x += 24) g.fillRect(x + rnd() * 10, GROUND + 14 + rnd() * 30, 10, 3);
+  for (const lx of LOTS) {
+    g.fillStyle = '#6b645b';
+    g.fillRect(lx - 75, GROUND, 150, 7);
+    g.fillStyle = 'rgba(242,183,5,0.75)';
+    for (let i = 0; i < 6; i++) g.fillRect(lx - 75 + i * 26, GROUND + 9, 13, 3);
+  }
+  return c;
+}
+
+const easeOut = (t) => 1 - Math.pow(1 - t, 3);
+
+function drawBuilding(b, time) {
+  const off = (1 - easeOut(b.rise)) * b.rows * B;
+  const t = b.t;
+  ctx.save();
+  if (off > 0) {
+    ctx.beginPath();
+    ctx.rect(0, 0, W, GROUND);
+    ctx.clip();
+  }
+  for (let r = 0; r < b.rows; r++) {
+    for (let c = 0; c < b.cols; c++) {
+      const cell = b.cells[r][c];
+      if (!cell.alive) continue;
+      const x = b.x + c * B;
+      const y = GROUND - (r + 1) * B + off;
+      ctx.fillStyle = t.wall[cell.shade];
+      ctx.fillRect(x, y, B, B);
+      if (r === 0 && c === Math.floor(b.cols / 2)) {
+        ctx.fillStyle = '#2a211b';
+        ctx.fillRect(x + 4, y + 4, B - 8, B - 4);
+      } else {
+        ctx.fillStyle = cell.lit ? t.lit : t.dark;
+        ctx.fillRect(x + 5, y + 5, B - 10, B - 9);
+      }
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(x, y + B - 1, B, 1);
+      ctx.fillRect(x + B - 1, y, 1, B);
+    }
+  }
+  // Roof trim on the top row.
+  const topRow = b.cells[b.rows - 1];
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  for (let c = 0; c < b.cols; c++) if (topRow[c].alive) ctx.fillRect(b.x + c * B - 1, GROUND - b.rows * B + off - 3, B + 2, 3);
+  if (b.tier === 6) {
+    ctx.fillStyle = '#fffbe6';
+    for (let k = 0; k < 3; k++) {
+      const r = Math.floor((Math.sin(time * 1.3 + k * 2.1) * 0.5 + 0.5) * (b.rows - 1));
+      const c = (k * 3 + Math.floor(time * 2)) % b.cols;
+      if (!b.cells[r][c].alive) continue;
+      const sx = b.x + c * B + B / 2, sy = GROUND - (r + 1) * B + off + B / 2;
+      const s = 3 + 2 * Math.sin(time * 6 + k);
+      ctx.fillRect(sx - s, sy - 0.75, s * 2, 1.5);
+      ctx.fillRect(sx - 0.75, sy - s, 1.5, s * 2);
+    }
+  }
+  ctx.restore();
+}
+
+function drawCrane() {
+  // Girder across the top of the site.
+  ctx.fillStyle = '#2a2d33';
+  ctx.fillRect(0, 10, W, 26);
+  ctx.strokeStyle = '#f2b705';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  for (let x = 0; x <= W; x += 24) {
+    ctx.moveTo(x, 12);
+    ctx.lineTo(x + 12, 34);
+    ctx.lineTo(x + 24, 12);
+  }
+  ctx.stroke();
+  ctx.fillStyle = '#f2b705';
+  ctx.fillRect(0, 8, W, 4);
+  ctx.fillRect(0, 34, W, 4);
+  // Trolley.
+  const tx = trolley.x;
+  ctx.fillStyle = '#1b1d22';
+  ctx.fillRect(tx - 24, 30, 48, 14);
+  ctx.fillStyle = '#d4623b';
+  ctx.fillRect(tx - 24, 30, 48, 4);
+  ctx.fillStyle = '#6d727a';
+  ctx.beginPath();
+  ctx.arc(tx - 14, 30, 4, 0, Math.PI * 2);
+  ctx.arc(tx + 14, 30, 4, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+function drawChain() {
+  const x0 = trolley.x, y0 = PIVOT_Y;
+  const dx = ball.x - x0, dy = ball.y - y0;
+  const len = Math.hypot(dx, dy);
+  const ang = Math.atan2(dy, dx);
+  const n = Math.floor(len / 8);
+  ctx.lineWidth = 2.2;
+  for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n;
+    ctx.strokeStyle = i % 2 ? '#7c828b' : '#a9afb7';
+    ctx.beginPath();
+    ctx.ellipse(x0 + dx * t, y0 + dy * t, 5, i % 2 ? 1.6 : 3, ang, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+}
+
+function drawBall() {
+  const r = ballRadius();
+  // Motion trail.
+  for (let i = 0; i < ball.trail.length; i++) {
+    const p = ball.trail[i];
+    const a = (i / ball.trail.length) * Math.min(1, ball.speed / 600) * 0.25;
+    if (a <= 0.01) continue;
+    ctx.fillStyle = `rgba(230,224,210,${a})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, r * (0.6 + 0.4 * i / ball.trail.length), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const g = ctx.createRadialGradient(ball.x - r * 0.35, ball.y - r * 0.4, r * 0.1, ball.x, ball.y, r);
+  g.addColorStop(0, '#9aa1ab');
+  g.addColorStop(0.45, '#3b4049');
+  g.addColorStop(1, '#121418');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(ball.x, ball.y, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#a9afb7';
+  ctx.lineWidth = 3;
+  const ang = Math.atan2(ball.y - PIVOT_Y, ball.x - trolley.x);
+  ctx.beginPath();
+  ctx.arc(ball.x - Math.cos(ang) * (r + 3), ball.y - Math.sin(ang) * (r + 3), 5, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+function drawFloaters() {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.lineJoin = 'round';
+  for (const f of state.floaters) {
+    const a = Math.min(1, f.life / (f.max * 0.4));
+    ctx.globalAlpha = a;
+    ctx.font = `${f.size}px Bungee, Impact, 'Arial Black', sans-serif`;
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#15171c';
+    ctx.strokeText(f.text, f.x, f.y);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function draw(time) {
+  if (!bg) bg = buildBackground();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bg, 0, 0);
+  ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
+  if (state.shake > 0.2) {
+    ctx.translate((Math.random() - 0.5) * state.shake, (Math.random() - 0.5) * state.shake);
+  }
+
+  for (const lot of state.lots) if (lot.building) drawBuilding(lot.building, time);
+
+  for (const p of state.debris) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, p.life / 0.5);
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s);
+    if (p.win) {
+      ctx.fillStyle = p.win;
+      ctx.fillRect(-p.s / 4, -p.s / 4, p.s / 2, p.s / 2);
+    }
+    ctx.restore();
+  }
+  for (const d of state.dust) {
+    ctx.fillStyle = `rgba(200,190,175,${(d.life / d.max) * 0.35})`;
+    ctx.beginPath();
+    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  drawCrane();
+  drawChain();
+  drawBall();
+  drawFloaters();
+
+  if (state.mode === 'playing' && state.combo >= 10) {
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.font = `22px Bungee, Impact, 'Arial Black', sans-serif`;
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = '#15171c';
+    const label = `COMBO ×${comboMult()}`;
+    ctx.strokeText(label, 16, 52);
+    ctx.fillStyle = '#f2b705';
+    ctx.fillText(label, 16, 52);
+  }
+  if (state.mode === 'report') {
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = `48px Bungee, Impact, 'Arial Black', sans-serif`;
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#15171c';
+    ctx.strokeText("TIME'S UP!", W / 2, H / 2 - 40);
+    ctx.fillStyle = '#f2b705';
+    ctx.fillText("TIME'S UP!", W / 2, H / 2 - 40);
+  }
+}
+
+// ---- HUD ------------------------------------------------------------------------
+const hud = {
+  bank: document.getElementById('h-bank'),
+  earned: document.getElementById('h-earned'),
+  time: document.getElementById('h-time'),
+  combo: document.getElementById('h-combo'),
+  luck: document.getElementById('h-luck'),
+  speed: document.getElementById('h-speed'),
+};
+const hudCache = {};
+function setText(key, text) {
+  if (hudCache[key] === text) return;
+  hudCache[key] = text;
+  hud[key].textContent = text;
+}
+function updateHUD() {
+  setText('bank', fmt(save.bank));
+  setText('earned', fmt(state.earned));
+  const secs = state.mode === 'playing' ? Math.ceil(state.time) : state.mode === 'report' ? 0 : jobTime();
+  setText('time', `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`);
+  hud.time.classList.toggle('low', state.mode === 'playing' && secs <= 10);
+  setText('combo', `×${comboMult()}`);
+  setText('luck', `${save.luck}/${UPGRADES.luck.max}`);
+  hud.speed.style.width = `${Math.min(100, (ball.speed / 650) * 100).toFixed(1)}%`;
+}
+
+// ---- Main loop -------------------------------------------------------------------
+const STEP = 1 / 240;
+let last = performance.now();
+let acc = 0;
+
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (state.mode === 'playing') {
+    state.time -= dt;
+    state.comboTimer -= dt;
+    if (state.comboTimer <= 0) state.combo = 0;
+    state.hintCooldown -= dt;
+  }
+
+  acc += dt;
+  let n = 0;
+  while (acc >= STEP && n < 14) {
+    step(STEP);
+    acc -= STEP;
+    n++;
+  }
+  if (n >= 14) acc = 0;
+  afterPhysics();
+
+  if (state.mode === 'playing' && state.time <= 0) {
+    state.time = 0;
+    endJob();
+  }
+
+  updateLots(dt);
+  updateParticles(dt);
+  state.shake *= Math.exp(-8 * dt);
+  ball.trail.push({ x: ball.x, y: ball.y });
+  if (ball.trail.length > 8) ball.trail.shift();
+
+  draw(now / 1000);
+  updateHUD();
+  requestAnimationFrame(frame);
+}
+
+window.addEventListener('pagehide', persist);
+document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+
+// Keep progress across live updates of this page.
+window.claude?.hot?.snapshot?.(() => ({ save }));
+function boot(data) {
+  if (data && data.save) save = Object.assign(defaultSave(), data.save);
+  resize();
+  showOverlay('menu');
+  requestAnimationFrame((t) => { last = t; frame(t); });
+}
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+})();
+</script>
